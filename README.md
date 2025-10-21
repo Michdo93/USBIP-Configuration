@@ -5,17 +5,48 @@ How to configure client and server for sharing usb over ip.
 
 ### Raspberry Pi
 
+```
+sudo apt update
+sudo apt install usbip
+```
 
 ### Ubuntu
 
+```
+sudo apt install linux-tools-generic
+# or
+sudo apt install linux-tools-$(uname -r)
+```
 
 ### Windows
 
-
+You have to use `Windows Subsystem on Linux 2 (WSL 2)`. After that follow the Ubuntu installation guide.
 
 ## Configuration
 
+### Server
+
+Loading kernel modules:
+
+```
+# temporarly
+sudo modprobe usbip_host
+# permanently
+echo "usbip_host" | sudo tee -a /etc/modules
+```
+
+
+
 ### Client
+
+Loading kernel modules:
+
+```
+# temporarly
+sudo modprobe vhci-hcd
+# permanently
+echo "vhci-hcd" | sudo tee -a /etc/modules
+```
 
 /etc/systemd/system/usbip-client@.service:
 
