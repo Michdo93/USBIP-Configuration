@@ -147,7 +147,7 @@ OnBootSec=10s
 OnUnitActiveSec=30s
 
 [Install]
-WantedBy=timers.targe
+WantedBy=timers.target
 ```
 
 /etc/systemd/system/usbip-watchdog.service:
@@ -193,7 +193,7 @@ sudo systemctl enable usbip-client@1-1.2.service
 After that you have to start the watchdog. The watchdog will restart your service if the server is down and restarted a few seconds later.
 
 ```
-sudo systemctl enable usbip-watchdog.service
+sudo systemctl enable usbip-watchdog.timer
 sudo reboot
 ```
 
