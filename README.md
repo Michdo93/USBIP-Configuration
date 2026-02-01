@@ -1,4 +1,4 @@
-# USBIP-Configuration
+# USB/IP Configuration
 How to configure client and server for sharing usb over ip.
 
 ## Installation
