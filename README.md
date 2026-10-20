@@ -85,11 +85,11 @@ RestartSec=5s
 WantedBy=multi-user.target
 ```
 
-At first you have to start and enable the `usbip.service` for running the USB/IP Daemon:
+At first you have to start and enable the `usbipd.service` for running the USB/IP Daemon:
 
 ```
-sudo systemctl start usbip.service
-sudo systemctl enable usbip.service
+sudo systemctl start usbipd.service
+sudo systemctl enable usbipd.service
 ```
 
 Then you have to release an USB port. As example the port `1-1.2`:
