@@ -110,6 +110,8 @@ sudo modprobe vhci-hcd
 echo "vhci-hcd" | sudo tee -a /etc/modules
 ```
 
+#### Connecting one server to the client
+
 /etc/systemd/system/usbip-client@.service:
 
 ```
@@ -194,6 +196,116 @@ After that you have to start the watchdog. The watchdog will restart your servic
 
 ```
 sudo systemctl enable usbip-watchdog.timer
+sudo reboot
+```
+
+#### Connecting multiple servers to the client
+
+/etc/systemd/system/usbip-client@.service:
+
+```
+[Unit]
+Description=USB/IP Client Attach/Detach Service for %i
+After=network-online.target
+Before=shutdown.target reboot.target halt.target
+BindsTo=network.target
+After=network.target
+
+[Service]
+Type=idle
+ExecStartPre=/usr/sbin/modprobe vhci-hcd
+
+# %i enthält z.B. "192.168.0.231:1-1.2". Wir splitten das für attach:
+ExecStart=/bin/bash -c 'SERVER="${%i%%:*}"; BUSID="${%i##*:}"; /usr/sbin/usbip attach -r "$SERVER" -b "$BUSID"'
+
+# Beim Detach suchen wir nach dem aktiven Port (hier ist es wichtig, dass das Skript / der Befehl den Port gezielt trennt)
+ExecStop=/usr/bin/sh -c '/usr/sbin/usbip port | grep "<Port in Use>" | awk "{print \$2}" | tr -d ":" | xargs -r /usr/sbin/usbip detach -p'
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=15s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+/etc/systemd/system/usbip-watchdog.timer:
+
+```
+[Unit]
+Description=Timer for USB/IP Client Watchdog (%i)
+
+[Timer]
+# Der Timer startet 10 Sekunden nach dem Booten
+OnBootSec=10s
+# Der Timer wird alle 30 Sekunden ausgelöst
+OnUnitActiveSec=30s
+
+[Install]
+WantedBy=timers.target
+```
+
+/etc/systemd/system/usbip-watchdog.service:
+
+```
+[Unit]
+Description=USB/IP Client Watchdog Service (%i)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usbip-watchdog.sh %i
+```
+
+/usr/local/bin/usbip-watchdog.sh:
+
+```
+#!/bin/bash
+
+# Das Argument ist z.B. "192.168.0.231:1-1.2"
+INPUT="$1"
+
+# Aufteilen in Server und Bus-ID
+SERVER="${INPUT%%:*}"
+BUS_ID="${INPUT##*:}"
+
+if [ -z "$SERVER" ] || [ -z "$BUS_ID" ]; then
+    echo "WATCHDOG ERROR: Ungültiges Format. Erwartet: SERVER:BUSID (erhalten: $INPUT)"
+    exit 1
+fi
+
+SERVICE_NAME="usbip-client@$INPUT.service"
+
+# Prüfen, ob das Gerät vorhanden ist
+if ! /usr/sbin/usbip port | grep -q "/$BUS_ID"; then
+    echo "WATCHDOG: USB/IP Gerät $BUS_ID auf Server $SERVER nicht gefunden. Neustart des Services."
+    /usr/bin/systemctl restart "$SERVICE_NAME"
+    exit 1
+fi
+
+# Alles in Ordnung
+exit 0
+```
+
+At first you have to connect to the USB/IP port you have released on your servers.
+
+For Server 1 (e.g., IP `192.168.0.231`, Device `1-1.2`):
+
+```
+sudo systemctl start usbip-client@192.168.0.231:1-1.2.service
+sudo systemctl enable usbip-client@192.168.0.231:1-1.2.service
+```
+
+For Server 2 (e.g., IP `192.168.0.245`, Device `1-1.4`):
+
+```
+sudo systemctl start usbip-client@192.168.0.245:1-1.4.service
+sudo systemctl enable usbip-client@192.168.0.245:1-1.4.service
+```
+
+After that you have to start the watchdog. The watchdog will restart your service if the server is down and restarted a few seconds later.
+
+```
+sudo systemctl enable --now usbip-watchdog@192.168.0.231:1-1.2.timer
+sudo systemctl enable --now usbip-watchdog@192.168.0.245:1-1.4.timer
 sudo reboot
 ```
 
